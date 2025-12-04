@@ -6,13 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter",
-        "Segoe UI", sans-serif;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
 
     body {
       background: radial-gradient(circle at top, #020617 0, #000 55%);
@@ -23,46 +17,19 @@
       align-items: center;
     }
 
-    .page {
-      width: 100%;
-      max-width: 480px;
-      padding: 24px 18px 32px;
-    }
+    .page { width: 100%; max-width: 480px; padding: 24px 18px 32px; }
 
-    .header {
-      text-align: center;
-      margin-bottom: 28px;
-    }
+    .header { text-align: center; margin-bottom: 28px; }
 
-    .logo {
-      font-size: 2.4rem;
-      font-weight: 700;
-      letter-spacing: -0.04em;
-      color: #f9fafb;
-    }
+    .logo { font-size: 2.4rem; font-weight: 700; letter-spacing: -0.04em; color: #f9fafb; }
 
-    .logo span {
-      color: #3b82f6;
-    }
+    .logo span { color: #3b82f6; }
 
-    .tagline {
-      margin-top: 8px;
-      font-size: 0.98rem;
-      color: #9ca3af;
-    }
+    .tagline { margin-top: 8px; font-size: 0.98rem; color: #9ca3af; }
 
-    .subtext {
-      margin-top: 10px;
-      font-size: 0.9rem;
-      color: #6b7280;
-    }
+    .subtext { margin-top: 10px; font-size: 0.9rem; color: #6b7280; }
 
-    .card-group {
-      margin-top: 26px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
+    .card-group { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
 
     .feature-card {
       border-radius: 16px;
@@ -74,61 +41,18 @@
       gap: 6px;
     }
 
-    .feature-card.active {
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
-    }
+    .feature-card.active { border-color: #3b82f6; box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5); }
+    .feature-card.disabled { opacity: 0.5; }
 
-    .feature-card.disabled {
-      opacity: 0.5;
-    }
+    .feature-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .feature-title { font-size: 1rem; font-weight: 600; color: #f9fafb; }
 
-    .feature-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
+    .badge { font-size: 0.7rem; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+    .badge-live { background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.5); color: #4ade80; }
+    .badge-soon { background: rgba(15, 23, 42, 0.9); border-style: dashed; border-color: rgba(55, 65, 81, 0.9); color: #9ca3af; }
 
-    .feature-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #f9fafb;
-    }
-
-    .badge {
-      font-size: 0.7rem;
-      padding: 3px 9px;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      white-space: nowrap;
-    }
-
-    .badge-live {
-      background: rgba(34, 197, 94, 0.12);
-      border-color: rgba(34, 197, 94, 0.5);
-      color: #4ade80;
-    }
-
-    .badge-soon {
-      background: rgba(15, 23, 42, 0.9);
-      border-style: dashed;
-      border-color: rgba(55, 65, 81, 0.9);
-      color: #9ca3af;
-    }
-
-    .feature-body {
-      font-size: 0.86rem;
-      color: #9ca3af;
-      line-height: 1.45;
-      margin-top: 2px;
-    }
-
-    .feature-footer {
-      margin-top: 10px;
-      display: flex;
-      justify-content: flex-start;
-    }
+    .feature-body { font-size: 0.86rem; color: #9ca3af; line-height: 1.45; margin-top: 2px; }
+    .feature-footer { margin-top: 10px; display: flex; justify-content: flex-start; }
 
     .btn {
       font-size: 0.86rem;
@@ -143,56 +67,13 @@
       gap: 6px;
     }
 
-    .btn-primary {
-      background: #2563eb;
-      border-color: #2563eb;
-      color: #f9fafb;
-    }
+    .btn-primary { background: #2563eb; border-color: #2563eb; color: #f9fafb; }
+    .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
 
-    .btn-primary:hover {
-      background: #1d4ed8;
-      border-color: #1d4ed8;
-    }
+    .btn-ghost { background: transparent; border-color: #4b5563; color: #9ca3af; cursor: default; }
+    .btn-ghost span { font-size: 0.78rem; }
 
-    .btn-ghost {
-      background: transparent;
-      border-color: #4b5563;
-      color: #9ca3af;
-      cursor: default;
-    }
-
-    .btn-ghost span {
-      font-size: 0.78rem;
-    }
-
-    .footer {
-      margin-top: 26px;
-      text-align: center;
-      font-size: 0.78rem;
-      color: #4b5563;
-    }
-
-    @media (min-width: 768px) {
-      .page {
-        max-width: 640px;
-      }
-
-      .header {
-        margin-bottom: 30px;
-      }
-
-      .logo {
-        font-size: 2.8rem;
-      }
-
-      .card-group {
-        gap: 16px;
-      }
-
-      .feature-card {
-        padding: 16px 18px 18px;
-      }
-    }
+    .footer { margin-top: 26px; text-align: center; font-size: 0.78rem; color: #4b5563; }
   </style>
 </head>
 
@@ -220,7 +101,7 @@
           FlowStable bridge. Powered by gUSDT liquidity on StableChain.
         </p>
         <div class="feature-footer">
-          <a href="#" class="btn btn-primary">
+          <a href="https://www.flowstable.in/testnet-bridge/bridge.html" class="btn btn-primary">
             Open bridge
           </a>
         </div>

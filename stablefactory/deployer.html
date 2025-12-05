@@ -4,11 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StableFactory :: v1</title>
-  <!-- Ethers.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
-  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
@@ -43,6 +40,8 @@
       min-height: 100vh;
       display: flex; flex-direction: column; align-items: center;
       padding-bottom: 50px;
+      overflow-x: hidden; 
+      width: 100%;
     }
 
     /* --- MODAL --- */
@@ -80,6 +79,7 @@
     #toast-container {
         position: fixed; top: 20px; right: 20px; z-index: 9999;
         display: flex; flex-direction: column; gap: 10px;
+        max-width: 90%; 
     }
     .toast {
         background: var(--panel); border: 1px solid var(--accent);
@@ -152,6 +152,13 @@
       .container { grid-template-columns: 1fr; }
     }
 
+    @media(max-width: 650px) {
+        .navbar { flex-direction: column; gap: 15px; padding: 15px; }
+        .nav-actions { width: 100%; justify-content: center; gap: 10px; }
+        .brand-link { display: none; } 
+        .container { padding: 0 15px; }
+    }
+
     /* --- PANELS --- */
     .panel {
       background: var(--panel); border: 1px solid var(--border);
@@ -207,6 +214,17 @@
     .deploy-btn:hover:not(:disabled) { box-shadow: 0 0 15px var(--accent-dim); transform: translateY(-1px); }
     .deploy-btn:disabled { background: var(--border); color: #444; cursor: not-allowed; }
 
+    /* Added Add to Wallet Button Style */
+    .add-wallet-btn-large {
+        width: 100%; background: transparent; color: var(--accent); 
+        border: 1px dashed var(--accent); padding: 12px; 
+        font-weight: 700; font-family: inherit; cursor: pointer;
+        text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;
+        font-size: 0.8rem; margin-top: 15px; display: none; /* Hidden by default */
+        align-items: center; justify-content: center; gap: 8px;
+    }
+    .add-wallet-btn-large:hover { background: var(--accent-dim); }
+
     /* --- RIGHT COLUMN (Docs & History) --- */
     .right-col { display: flex; flex-direction: column; gap: 20px; }
     
@@ -256,7 +274,6 @@
 
   <div id="toast-container"></div>
 
-  <!-- VERIFY MODAL -->
   <div id="verifyModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -285,7 +302,6 @@
     </div>
   </div>
 
-  <!-- NAVBAR -->
   <nav class="navbar">
     <div class="logo">
         <div><span class="logo-main">STABLE</span><span class="logo-suffix">FACTORY</span></div>
@@ -304,10 +320,8 @@
     </div>
   </nav>
 
-  <!-- MAIN CONTAINER -->
   <div class="container">
     
-    <!-- LEFT: CONFIGURATION -->
     <div class="panel">
       <div class="panel-header">:: Token Configuration ::</div>
       
@@ -356,16 +370,18 @@
         CONNECT WALLET FIRST
       </button>
       
+      <button id="btnAddToWalletMain" class="add-wallet-btn-large">
+          <i class="fa-solid fa-wallet"></i> ADD TO WALLET
+      </button>
+      
       <div class="status-text">
         <div class="dot" id="statusDot"></div>
         <span id="statusText">System Ready</span>
       </div>
     </div>
 
-    <!-- RIGHT: DOCS & HISTORY -->
     <div class="right-col">
       
-      <!-- FAQ (Expanded) -->
       <div class="panel">
         <div class="panel-header">:: Documentation ::</div>
         <div class="faq-item">
@@ -385,7 +401,6 @@
         </div>
       </div>
 
-      <!-- HISTORY (Compact) -->
       <div class="panel">
         <div class="panel-header" style="display:flex; justify-content:space-between; margin-bottom:15px;">
           <span>:: Logs ::</span>
@@ -747,7 +762,6 @@ contract LaunchpadToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
         // Generate Constructor Arguments
         const abiCoder = ethers.AbiCoder.defaultAbiCoder();
         // constructor(string, string, uint256, uint256, address, bool, bool, bool)
-        // IMPORTANT: The "creator" in the constructor args is the USER (msg.sender from factory's perspective)
         const encoded = abiCoder.encode(
             ["string", "string", "uint256", "uint256", "address", "bool", "bool", "bool"],
             [name, symbol, supply, maxSupply, userAddress, isMintable, isBurnable, isPausable]
@@ -825,6 +839,10 @@ contract LaunchpadToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
     }
 
     async function deployToken() {
+        // Reset Main Wallet Button
+        const walletBtn = document.getElementById('btnAddToWalletMain');
+        walletBtn.style.display = 'none';
+
         const factoryAddr = FACTORY_ADDRESS;
         const name = document.getElementById('tokenName').value;
         const symbol = document.getElementById('tokenSymbol').value;
@@ -855,7 +873,6 @@ contract LaunchpadToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
             // Extract Token Address
             let tokenAddress = null;
             if (receipt.logs.length > 0) {
-                // The Factory emits TokenCreated(address, ...). It is usually the first log, but let's try parsing.
                 const iface = new ethers.Interface(FACTORY_ABI);
                 for(let log of receipt.logs) {
                     try {
@@ -872,6 +889,13 @@ contract LaunchpadToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
                 setStatus("Deployment Successful", "success");
                 showToast("Token Deployed Successfully!", "success");
                 saveToHistory(name, symbol, tx.hash, supply, maxSupply, options, tokenAddress);
+                
+                // SHOW BIG WALLET BUTTON
+                if(tokenAddress) {
+                    walletBtn.style.display = 'flex';
+                    walletBtn.onclick = function() { addToWallet(tokenAddress, symbol); };
+                }
+
             } else { throw new Error("Transaction reverted"); }
         } catch (err) {
             console.error(err);
@@ -903,10 +927,9 @@ contract LaunchpadToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
             return;
         }
         list.innerHTML = history.map((item, index) => {
-            // Correct Link Logic: If we found the address, go to contract page. Else TX page.
             const verifyUrl = item.address 
-                ? `${EXPLORER_BASE}/address/${item.address}#code` // Direct to contract
-                : `${EXPLORER_BASE}/tx/${item.hash}`; // Fallback to TX
+                ? `${EXPLORER_BASE}/address/${item.address}` 
+                : `${EXPLORER_BASE}/tx/${item.hash}`;
             
             // Add to Wallet logic
             const addToWalletHtml = item.address ? `
@@ -942,7 +965,7 @@ contract LaunchpadToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
                     options: {
                         address: address,
                         symbol: symbol,
-                        decimals: 18,
+                        decimals: 18, 
                     },
                 },
             });

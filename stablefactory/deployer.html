@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StableFactory :: v1</title>
+  <!-- Ethers.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      /* --- GREEN & BLACK TERMINAL THEME --- */
+      --bg: #050505;       /* Pure Black */
+      --panel: #0a0a0a;    /* Very Dark Grey */
+      --border: #333333;
+      
+      --accent: #00ff9d;   /* Terminal Green */
+      --accent-dim: rgba(0, 255, 157, 0.1);
+      
+      --text-main: #e5e5e5;
+      --text-muted: #888888;
+      --success: #00ff9d;
+      --error: #ff4444;
+      
+      --grid-color: rgba(0, 255, 157, 0.05);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background-color: var(--bg);
+      background-image: 
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px),
+        radial-gradient(circle at 50% 0%, #112211 0%, transparent 60%);
+      background-size: 30px 30px, 30px 30px, 100% 100%;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding-bottom: 50px;
+    }
+
+    /* --- MODAL --- */
+    .modal {
+        display: none; position: fixed; z-index: 100; left: 0; top: 0;
+        width: 100%; height: 100%; background-color: rgba(0,0,0,0.85);
+        align-items: center; justify-content: center; backdrop-filter: blur(5px);
+    }
+    .modal-content {
+        background-color: var(--panel); border: 1px solid var(--accent);
+        padding: 25px; width: 90%; max-width: 700px;
+        box-shadow: 0 0 40px rgba(0, 255, 157, 0.15);
+        max-height: 90vh; overflow-y: auto;
+    }
+    .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .modal-title { color: var(--accent); font-weight: 700; font-size: 0.9rem; }
+    .close-btn { color: var(--text-muted); cursor: pointer; font-size: 1.2rem; }
+    .close-btn:hover { color: #fff; }
+    
+    .code-wrapper { margin-bottom: 15px; position: relative; }
+    .code-label { color: #fff; font-size: 0.7rem; margin-bottom: 5px; display: block; font-weight: 700; }
+    .code-box {
+        background: #000; border: 1px solid var(--border); color: var(--text-muted);
+        padding: 10px; font-size: 0.65rem; height: 100px; width: 100%;
+        margin-bottom: 5px; resize: none; outline: none; font-family: inherit;
+    }
+    .copy-btn {
+        background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent);
+        padding: 10px; font-size: 0.75rem; cursor: pointer; width: 100%; font-weight: bold;
+        transition: 0.2s;
+    }
+    .copy-btn:hover { background: var(--accent); color: #000; }
+
+    /* --- TOAST --- */
+    #toast-container {
+        position: fixed; top: 20px; right: 20px; z-index: 9999;
+        display: flex; flex-direction: column; gap: 10px;
+    }
+    .toast {
+        background: var(--panel); border: 1px solid var(--accent);
+        border-left: 3px solid var(--accent);
+        padding: 12px 16px; font-size: 0.8rem;
+        color: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.9);
+        display: flex; align-items: center; gap: 10px;
+        animation: slideIn 0.3s ease-out; min-width: 260px;
+    }
+    .toast.error { border-color: var(--error); color: var(--error); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* --- NAVBAR --- */
+    .navbar {
+      width: 100%; max-width: 1000px; 
+      padding: 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px; border-bottom: 1px solid var(--border);
+      background: rgba(5, 5, 5, 0.9); backdrop-filter: blur(5px);
+      position: sticky; top: 0; z-index: 50;
+    }
+    
+    .logo { 
+      font-size: 1.3rem; font-weight: 800; letter-spacing: -1px; 
+      display: flex; align-items: center; gap: 6px; 
+    }
+    .logo-main { color: #fff; }
+    .logo-suffix { color: var(--accent); }
+    
+    .logo-tag {
+      font-size: 0.6rem; color: var(--bg); 
+      background: var(--accent); 
+      padding: 1px 5px; border-radius: 2px; margin-left: 5px; 
+      font-weight: 700; letter-spacing: 0; position: relative; top: -1px;
+    }
+
+    /* Nav Actions */
+    .nav-actions { display: flex; gap: 15px; align-items: center; }
+
+    .brand-link {
+        font-size: 0.7rem; color: var(--text-muted); text-decoration: none;
+        display: flex; align-items: center; gap: 6px;
+        border-right: 1px solid var(--border); padding-right: 15px;
+        transition: 0.2s;
+    }
+    .brand-link:hover { color: var(--text-main); }
+    .brand-link span { color: var(--accent); font-weight: 600; }
+
+    .nav-btn {
+      background: transparent; color: var(--text-muted);
+      border: 1px solid var(--border); padding: 6px 12px;
+      font-family: inherit; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.2s; text-decoration: none; display: flex; align-items: center; gap: 6px;
+    }
+    .nav-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+    
+    .connect-btn { color: var(--accent); border-color: var(--accent); }
+    .connect-btn:hover { background: var(--accent); color: #000; }
+    .connect-btn.connected { border-color: var(--border); color: var(--text-muted); }
+    .connect-btn.connected:hover { border-color: var(--error); color: var(--error); background: transparent; }
+
+    /* --- LAYOUT --- */
+    .container {
+      display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 25px;
+      width: 100%; max-width: 1000px; padding: 0 20px;
+      align-items: start;
+    }
+    
+    @media(max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    /* --- PANELS --- */
+    .panel {
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 24px; position: relative;
+    }
+    .panel-header {
+      font-size: 0.8rem; color: var(--accent); margin-bottom: 20px;
+      text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px dashed var(--border);
+      padding-bottom: 10px; font-weight: 700;
+    }
+
+    /* --- INPUTS --- */
+    .input-group { margin-bottom: 18px; }
+    .label { display: block; font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
+    
+    input[type="text"], input[type="number"] {
+      width: 100%; background: #000; border: 1px solid var(--border);
+      color: var(--accent); padding: 12px; font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem; transition: 0.2s;
+    }
+    input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 10px var(--accent-dim); }
+    input::placeholder { color: #333; }
+
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* --- TABS --- */
+    .tabs { display: flex; gap: 0; border: 1px solid var(--border); background: #000; margin-bottom: 18px; }
+    .tab-btn {
+      flex: 1; padding: 10px; background: transparent; border: none; border-right: 1px solid var(--border);
+      color: var(--text-muted); cursor: pointer; font-family: inherit; font-size: 0.75rem; font-weight: 600;
+    }
+    .tab-btn:last-child { border-right: none; }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn.active { background: var(--accent); color: #000; font-weight: 700; }
+
+    /* --- TOGGLES --- */
+    .toggle-row { display: flex; gap: 10px; margin-bottom: 25px; }
+    .toggle-btn {
+      flex: 1; padding: 12px; border: 1px solid var(--border); background: transparent;
+      color: var(--text-muted); cursor: pointer; font-family: inherit; font-size: 0.75rem;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .toggle-btn:hover { border-color: #fff; color: #fff; }
+    .toggle-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    /* --- ACTION BTN --- */
+    .deploy-btn {
+      width: 100%; background: var(--accent); color: #000; border: none;
+      padding: 16px; font-weight: 700; font-family: inherit; cursor: pointer;
+      text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;
+      font-size: 0.9rem; margin-top: 10px;
+    }
+    .deploy-btn:hover:not(:disabled) { box-shadow: 0 0 15px var(--accent-dim); transform: translateY(-1px); }
+    .deploy-btn:disabled { background: var(--border); color: #444; cursor: not-allowed; }
+
+    /* --- RIGHT COLUMN (Docs & History) --- */
+    .right-col { display: flex; flex-direction: column; gap: 20px; }
+    
+    .faq-item { margin-bottom: 15px; border-bottom: 1px solid #1a1a1a; padding-bottom: 10px; }
+    .faq-item:last-child { border: none; padding-bottom: 0; }
+    .faq-q { font-size: 0.8rem; color: #fff; margin-bottom: 5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .faq-q i { color: var(--accent); font-size: 0.7rem; }
+    .faq-a { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; padding-left: 20px; }
+
+    /* History List */
+    .history-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .history-item { 
+      padding: 12px; border: 1px solid var(--border); background: #000; 
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .history-item:hover { border-color: var(--accent); }
+    
+    .history-main { display: flex; justify-content: space-between; align-items: center; }
+    .history-meta { color: var(--text-muted); font-size: 0.65rem; }
+    
+    .history-actions { display: flex; gap: 8px; border-top: 1px dashed var(--border); padding-top: 8px; }
+    .action-btn-small {
+        flex: 1; text-align: center; padding: 6px; border: 1px solid var(--border);
+        color: var(--text-muted); font-size: 0.65rem; cursor: pointer; text-decoration: none;
+        display: flex; align-items: center; justify-content: center; gap: 5px; transition: 0.2s;
+    }
+    .action-btn-small:hover { color: #fff; border-color: var(--accent); }
+    .action-btn-small.primary { color: var(--accent); border-color: var(--accent-dim); }
+    .action-btn-small.primary:hover { background: var(--accent); color: #000; }
+
+    .status-text { text-align: center; margin-top: 15px; font-size: 0.7rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px;}
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #475569; }
+    .dot.active { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .dot.busy { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    
+    .hidden { display: none; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  </style>
+</head>
+<body>
+
+  <div id="toast-container"></div>
+
+  <!-- VERIFY MODAL -->
+  <div id="verifyModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="modal-title">VERIFICATION DATA</span>
+            <span class="close-btn" onclick="closeVerifyModal()">×</span>
+        </div>
+        <div style="margin-bottom:15px; font-size:0.75rem; color:var(--text-muted);">
+            Go to <strong>Contract -> Verify & Publish</strong> on Explorer. Select <strong>Single File</strong> and use these:
+        </div>
+        
+        <div class="code-wrapper">
+            <span class="code-label">1. CONSTRUCTOR ARGUMENTS (ABI ENCODED)</span>
+            <textarea id="modal-args" class="code-box" readonly></textarea>
+            <button class="copy-btn" onclick="copyToClipboard('modal-args')">COPY ARGUMENTS</button>
+        </div>
+
+        <div class="code-wrapper">
+            <span class="code-label">2. SOURCE CODE (FLATTENED)</span>
+            <textarea id="modal-source" class="code-box" style="height:120px;" readonly></textarea>
+            <button class="copy-btn" onclick="copyToClipboard('modal-source')">COPY SOURCE CODE</button>
+        </div>
+        
+        <div style="margin-top:20px; padding-top:15px; border-top:1px dashed var(--border); font-size:0.7rem; color:var(--accent);">
+            <strong>CRITICAL:</strong> Select Compiler: <strong>v0.8.20+commit.a1b79de6</strong> | Optimization: <strong>Yes (200 Runs)</strong>
+        </div>
+    </div>
+  </div>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="logo">
+        <div><span class="logo-main">STABLE</span><span class="logo-suffix">FACTORY</span></div>
+        <span class="logo-tag">v1</span>
+    </div>
+    <div class="nav-actions">
+        <a href="https://flowstable.in" target="_blank" class="brand-link">
+            Powered by <span>FlowStable</span>
+        </a>
+        <a href="#" class="nav-btn" title="Coming Soon">
+            <i class="fa-solid fa-gas-pump"></i> Fuel
+        </a>
+        <button id="btnConnect" class="nav-btn connect-btn" onclick="connectWallet()">
+            [ Connect Wallet ]
+        </button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTAINER -->
+  <div class="container">
+    
+    <!-- LEFT: CONFIGURATION -->
+    <div class="panel">
+      <div class="panel-header">:: Token Configuration ::</div>
+      
+      <div class="input-group">
+        <label class="label">Token Name</label>
+        <input type="text" id="tokenName" placeholder="e.g. Green Dollar">
+      </div>
+
+      <div class="input-group">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+          <div>
+            <label class="label">Symbol</label>
+            <input type="text" id="tokenSymbol" placeholder="GDOL">
+          </div>
+          <div>
+            <label class="label">Initial Supply</label>
+            <input type="number" id="tokenSupply" placeholder="1000000" min="0" oninput="validity.valid||(value='');">
+          </div>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="label">Supply Model</label>
+        <div class="tabs">
+          <button class="tab-btn active" id="btn-fixed" onclick="setSupplyType('fixed')">FIXED</button>
+          <button class="tab-btn" id="btn-unlimited" onclick="setSupplyType('unlimited')">UNLIMITED</button>
+          <button class="tab-btn" id="btn-capped" onclick="setSupplyType('capped')">CAPPED</button>
+        </div>
+      </div>
+
+      <div class="input-group hidden" id="capBox">
+        <label class="label" style="color:var(--accent)">Max Supply Cap</label>
+        <input type="number" id="maxSupply" placeholder="Limit" min="0" oninput="validity.valid||(value='');">
+      </div>
+
+      <div class="toggle-row">
+        <button class="toggle-btn" id="btn-burnable" onclick="toggleOption('isBurnable')">
+          <i class="fa-solid fa-xmark"></i> BURNABLE
+        </button>
+        <button class="toggle-btn" id="btn-pausable" onclick="toggleOption('isPausable')">
+          <i class="fa-solid fa-xmark"></i> PAUSABLE
+        </button>
+      </div>
+
+      <button id="deployBtn" class="deploy-btn" onclick="deployToken()" disabled>
+        CONNECT WALLET FIRST
+      </button>
+      
+      <div class="status-text">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">System Ready</span>
+      </div>
+    </div>
+
+    <!-- RIGHT: DOCS & HISTORY -->
+    <div class="right-col">
+      
+      <!-- FAQ (Expanded) -->
+      <div class="panel">
+        <div class="panel-header">:: Documentation ::</div>
+        <div class="faq-item">
+          <div class="faq-q"><i class="fa-solid fa-angle-right"></i> SUPPLY</div>
+          <div class="faq-a">
+            <strong>Fixed:</strong> Supply is minted once.<br>
+            <strong>Unlimited:</strong> Owner can mint infinite tokens.<br>
+            <strong>Capped:</strong> Mint more tokens later, Up-to limit</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q"><i class="fa-solid fa-fire"></i> Burnable</div>
+          <div class="faq-a">Allows users to destroy tokens to reduce the circulating supply.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q"><i class="fa-solid fa-pause"></i> Pausable</div>
+          <div class="faq-a">Gives owner the ability to freeze all transfers in case of a hack.</div>
+        </div>
+      </div>
+
+      <!-- HISTORY (Compact) -->
+      <div class="panel">
+        <div class="panel-header" style="display:flex; justify-content:space-between; margin-bottom:15px;">
+          <span>:: Logs ::</span>
+          <span style="font-size:0.65rem; cursor:pointer; color:var(--text-muted);" onclick="clearHistory()">[CLEAR]</span>
+        </div>
+        <div id="historyList" class="history-list">
+          <div style="text-align:center; color:var(--text-muted); font-size:0.75rem; padding:15px;">
+            No recent deployments
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+    // --- CONFIGURATION ---
+    const CHAIN_ID_HEX = '0x899'; // 2201
+    const CHAIN_ID_DEC = 2201;
+    const RPC_URL = 'https://rpc.testnet.stable.xyz';
+    // Link to Token Contract (Address will be appended)
+    const EXPLORER_BASE = 'https://testnet.stablescan.xyz'; 
+    const FACTORY_ADDRESS = "0xcc4CE31D5FFb51c63435B7e9864Ed809e38E19a6";
+
+    // --- FLATTENED SOURCE CODE ---
+    const FLATTENED_SOURCE = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) { return msg.sender; }
+    function _msgData() internal view virtual returns (bytes calldata) { return msg.data; }
+}
+
+interface IERC20 {
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 value) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+}
+
+interface IERC20Metadata is IERC20 {
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
+}
+
+interface IERC20Errors {
+    error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
+    error ERC20InvalidSender(address sender);
+    error ERC20InvalidReceiver(address receiver);
+    error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
+    error ERC20InvalidApprover(address approver);
+    error ERC20InvalidSpender(address spender);
+}
+
+abstract contract ERC20 is Context, IERC20, IERC20Metadata, IERC20Errors {
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+    uint256 private _totalSupply;
+    string private _name;
+    string private _symbol;
+
+    constructor(string memory name_, string memory symbol_) {
+        _name = name_;
+        _symbol = symbol_;
+    }
+
+    function name() public view virtual returns (string memory) { return _name; }
+    function symbol() public view virtual returns (string memory) { return _symbol; }
+    function decimals() public view virtual returns (uint8) { return 18; }
+    function totalSupply() public view virtual returns (uint256) { return _totalSupply; }
+    function balanceOf(address account) public view virtual returns (uint256) { return _balances[account]; }
+
+    function transfer(address to, uint256 value) public virtual returns (bool) {
+        address owner = _msgSender();
+        _transfer(owner, to, value);
+        return true;
+    }
+
+    function allowance(address owner, address spender) public view virtual returns (uint256) {
+        return _allowances[owner][spender];
+    }
+
+    function approve(address spender, uint256 value) public virtual returns (bool) {
+        address owner = _msgSender();
+        _approve(owner, spender, value);
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 value) public virtual returns (bool) {
+        address spender = _msgSender();
+        _spendAllowance(from, spender, value);
+        _transfer(from, to, value);
+        return true;
+    }
+
+    function _transfer(address from, address to, uint256 value) internal {
+        if (from == address(0)) revert ERC20InvalidSender(address(0));
+        if (to == address(0)) revert ERC20InvalidReceiver(address(0));
+        _update(from, to, value);
+    }
+
+    function _update(address from, address to, uint256 value) internal virtual {
+        if (from == address(0)) {
+            _totalSupply += value;
+        } else {
+            uint256 fromBalance = _balances[from];
+            if (fromBalance < value) revert ERC20InsufficientBalance(from, fromBalance, value);
+            unchecked { _balances[from] = fromBalance - value; }
+        }
+        if (to == address(0)) {
+            unchecked { _totalSupply -= value; }
+        } else {
+            unchecked { _balances[to] += value; }
+        }
+        emit Transfer(from, to, value);
+    }
+
+    function _mint(address account, uint256 value) internal {
+        if (account == address(0)) revert ERC20InvalidReceiver(address(0));
+        _update(address(0), account, value);
+    }
+
+    function _burn(address account, uint256 value) internal {
+        if (account == address(0)) revert ERC20InvalidSender(address(0));
+        _update(account, address(0), value);
+    }
+
+    function _approve(address owner, address spender, uint256 value) internal {
+        _approve(owner, spender, value, true);
+    }
+
+    function _approve(address owner, address spender, uint256 value, bool emitEvent) internal virtual {
+        if (owner == address(0)) revert ERC20InvalidApprover(address(0));
+        if (spender == address(0)) revert ERC20InvalidSpender(address(0));
+        _allowances[owner][spender] = value;
+        if (emitEvent) emit Approval(owner, spender, value);
+    }
+
+    function _spendAllowance(address owner, address spender, uint256 value) internal virtual {
+        uint256 currentAllowance = allowance(owner, spender);
+        if (currentAllowance != type(uint256).max) {
+            if (currentAllowance < value) revert ERC20InsufficientAllowance(spender, currentAllowance, value);
+            unchecked { _approve(owner, spender, currentAllowance - value, false); }
+        }
+    }
+}
+
+abstract contract Ownable is Context {
+    address private _owner;
+    error OwnableUnauthorizedAccount(address account);
+    error OwnableInvalidOwner(address owner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    constructor(address initialOwner) {
+        if (initialOwner == address(0)) revert OwnableInvalidOwner(address(0));
+        _transferOwnership(initialOwner);
+    }
+
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+
+    function owner() public view virtual returns (address) { return _owner; }
+
+    function _checkOwner() internal view virtual {
+        if (owner() != _msgSender()) revert OwnableUnauthorizedAccount(_msgSender());
+    }
+
+    function renounceOwnership() public virtual onlyOwner {
+        _transferOwnership(address(0));
+    }
+
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        if (newOwner == address(0)) revert OwnableInvalidOwner(address(0));
+        _transferOwnership(newOwner);
+    }
+
+    function _transferOwnership(address newOwner) internal virtual {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+
+abstract contract ERC20Burnable is Context, ERC20 {
+    function burn(uint256 value) public virtual {
+        _burn(_msgSender(), value);
+    }
+    function burnFrom(address account, uint256 value) public virtual {
+        _spendAllowance(account, _msgSender(), value);
+        _burn(account, value);
+    }
+}
+
+abstract contract Pausable is Context {
+    bool private _paused;
+    error EnforcedPause();
+    error ExpectedPause();
+    event Paused(address account);
+    event Unpaused(address account);
+
+    constructor() { _paused = false; }
+
+    modifier whenNotPaused() { _requireNotPaused(); _; }
+    modifier whenPaused() { _requirePaused(); _; }
+
+    function paused() public view virtual returns (bool) { return _paused; }
+
+    function _requireNotPaused() internal view virtual {
+        if (paused()) revert EnforcedPause();
+    }
+
+    function _requirePaused() internal view virtual {
+        if (!paused()) revert ExpectedPause();
+    }
+
+    function _pause() internal virtual whenNotPaused {
+        _paused = true;
+        emit Paused(_msgSender());
+    }
+
+    function _unpause() internal virtual whenPaused {
+        _paused = false;
+        emit Unpaused(_msgSender());
+    }
+}
+
+abstract contract ERC20Pausable is ERC20, Pausable {
+    function _update(address from, address to, uint256 value) internal virtual override whenNotPaused {
+        super._update(from, to, value);
+    }
+}
+
+contract LaunchpadToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
+    uint256 public immutable maxSupply;
+    bool public immutable isMintable;
+    bool public immutable isPausable;
+    bool public immutable isBurnable;
+
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        uint256 _initialSupply,
+        uint256 _maxSupply,
+        address _creator,
+        bool _isMintable,
+        bool _isBurnable,
+        bool _isPausable
+    ) ERC20(_name, _symbol) Ownable(_creator) {
+        maxSupply = _maxSupply;
+        isMintable = _isMintable;
+        isPausable = _isPausable;
+        isBurnable = _isBurnable;
+        if (_maxSupply > 0) {
+            require(_initialSupply <= _maxSupply, "Init supply exceeds Max supply");
+        }
+        _mint(_creator, _initialSupply * 10 ** decimals());
+    }
+
+    function mint(address to, uint256 amount) public onlyOwner {
+        require(isMintable, "Minting is disabled");
+        if (maxSupply > 0) {
+            require(totalSupply() + amount <= maxSupply * 10 ** decimals(), "Exceeds Max Supply");
+        }
+        _mint(to, amount);
+    }
+
+    function pause() public onlyOwner {
+        require(isPausable, "Token is Unstoppable");
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        require(isPausable, "Token is Unstoppable");
+        _unpause();
+    }
+
+    function burn(uint256 value) public override {
+        require(isBurnable, "Burning is disabled");
+        super.burn(value);
+    }
+
+    function burnFrom(address account, uint256 value) public override {
+        require(isBurnable, "Burning is disabled");
+        super.burnFrom(account, value);
+    }
+
+    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Pausable) {
+        super._update(from, to, value);
+    }
+}
+`;
+
+    const FACTORY_ABI = [
+        "function createToken(tuple(string name, string symbol, uint256 initialSupply, uint256 maxSupply, bool isMintable, bool isBurnable, bool isPausable) config) external payable returns (address)",
+        "event TokenCreated(address indexed tokenAddress, address indexed owner, string name, string symbol, uint256 initialSupply, string tokenType)"
+    ];
+
+    let provider, signer, userAddress;
+    let selectedSupplyType = 'fixed';
+    let options = { isMintable: false, isBurnable: false, isPausable: false };
+
+    window.onload = loadHistory;
+
+    // --- UI HELPERS ---
+    function setStatus(msg, type='normal') {
+        const t = document.getElementById('statusText');
+        const d = document.getElementById('statusDot');
+        t.innerText = `> ${msg}`;
+        d.className = 'dot';
+        if(type === 'busy') { t.style.color = 'var(--accent)'; d.classList.add('busy'); }
+        else if(type === 'success') { t.style.color = 'var(--success)'; d.classList.add('active'); }
+        else if(type === 'error') { t.style.color = 'var(--error)'; }
+        else { t.style.color = 'var(--text-muted)'; }
+    }
+
+    function showToast(msg, type='info') {
+        const box = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        el.innerHTML = `<span>> ${msg}</span>`;
+        box.appendChild(el);
+        setTimeout(() => el.remove(), 4000);
+    }
+
+    function setSupplyType(type) {
+        selectedSupplyType = type;
+        ['fixed', 'unlimited', 'capped'].forEach(t => document.getElementById(`btn-${t}`).classList.remove('active'));
+        document.getElementById(`btn-${type}`).classList.add('active');
+        const capBox = document.getElementById('capBox');
+        if (type === 'fixed') { options.isMintable = false; capBox.classList.add('hidden'); }
+        else if (type === 'unlimited') { options.isMintable = true; capBox.classList.add('hidden'); }
+        else if (type === 'capped') { options.isMintable = true; capBox.classList.remove('hidden'); }
+    }
+
+    function toggleOption(key) {
+        options[key] = !options[key];
+        const btn = document.getElementById(key === 'isBurnable' ? 'btn-burnable' : 'btn-pausable');
+        const label = key === 'isBurnable' ? 'BURNABLE' : 'PAUSABLE';
+        if (options[key]) {
+            btn.classList.add('active');
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> ${label}`;
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = `<i class="fa-solid fa-xmark"></i> ${label}`;
+        }
+    }
+
+    // --- MODAL FUNCTIONS ---
+    function openVerifyModal(name, symbol, supply, maxSupply, isMintable, isBurnable, isPausable) {
+        document.getElementById('verifyModal').style.display = 'flex';
+        
+        // Generate Constructor Arguments
+        const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+        // constructor(string, string, uint256, uint256, address, bool, bool, bool)
+        // IMPORTANT: The "creator" in the constructor args is the USER (msg.sender from factory's perspective)
+        const encoded = abiCoder.encode(
+            ["string", "string", "uint256", "uint256", "address", "bool", "bool", "bool"],
+            [name, symbol, supply, maxSupply, userAddress, isMintable, isBurnable, isPausable]
+        );
+        
+        document.getElementById('modal-args').value = encoded.slice(2); // Remove 0x
+        document.getElementById('modal-source').value = FLATTENED_SOURCE;
+    }
+
+    function closeVerifyModal() {
+        document.getElementById('verifyModal').style.display = 'none';
+    }
+
+    // Robust Copy Function
+    function copyToClipboard(elementId) {
+        const copyText = document.getElementById(elementId);
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); // For mobile
+        
+        try {
+            document.execCommand('copy');
+            showToast("Copied to clipboard!", "success");
+        } catch (err) {
+            showToast("Failed to copy", "error");
+        }
+    }
+
+    // --- WALLET ---
+    async function connectWallet() {
+        if (!window.ethereum) return showToast("MetaMask not found!", "error");
+        try {
+            setStatus("Connecting...", "busy");
+            provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            signer = await provider.getSigner();
+            userAddress = await signer.getAddress();
+            const btn = document.getElementById('btnConnect');
+            btn.innerHTML = `[ ${userAddress.slice(0,6)}..${userAddress.slice(-4)} ]`;
+            btn.classList.add('connected');
+            const deployBtn = document.getElementById('deployBtn');
+            deployBtn.disabled = false;
+            deployBtn.innerText = "INITIATE DEPLOYMENT";
+            await checkAndSwitchNetwork();
+        } catch (err) { setStatus("Connection failed", "error"); }
+    }
+
+    async function checkAndSwitchNetwork() {
+        const network = await provider.getNetwork();
+        if (Number(network.chainId) !== CHAIN_ID_DEC) {
+            setStatus("Switching to Stable Testnet...", "busy");
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: CHAIN_ID_HEX }],
+                });
+                setStatus("Connected: Stable Testnet", "success");
+            } catch (switchError) {
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: CHAIN_ID_HEX,
+                                chainName: 'Stable Testnet',
+                                nativeCurrency: { name: 'gUSDT', symbol: 'gUSDT', decimals: 18 },
+                                rpcUrls: [RPC_URL],
+                                blockExplorerUrls: ['https://blockscout.testnet.stable.xyz/']
+                            }],
+                        });
+                        setStatus("Connected: Stable Testnet", "success");
+                    } catch (addError) { setStatus("Failed to add network", "error"); }
+                } else { setStatus("Failed to switch network", "error"); }
+            }
+        } else { setStatus("Connected: Stable Testnet", "success"); }
+    }
+
+    async function deployToken() {
+        const factoryAddr = FACTORY_ADDRESS;
+        const name = document.getElementById('tokenName').value;
+        const symbol = document.getElementById('tokenSymbol').value;
+        const supply = document.getElementById('tokenSupply').value;
+
+        if (!name || !symbol || !supply) return showToast("Fill all required fields", "error");
+        let maxSupply = 0;
+        if (selectedSupplyType === 'capped') {
+            maxSupply = document.getElementById('maxSupply').value;
+            if (!maxSupply) return showToast("Max Cap required", "error");
+        }
+
+        try {
+            setStatus("Deploying... Confirm in Wallet", "busy");
+            const btn = document.getElementById('deployBtn');
+            btn.disabled = true; btn.innerText = "PROCESSING...";
+            const factory = new ethers.Contract(factoryAddr, FACTORY_ABI, signer);
+            const config = {
+                name: name, symbol: symbol, initialSupply: supply, maxSupply: maxSupply,
+                isMintable: options.isMintable, isBurnable: options.isBurnable, isPausable: options.isPausable
+            };
+            const tx = await factory.createToken(config);
+            setStatus("Transaction Sent...", "busy");
+            showToast("Tx Sent. Waiting for block...", "busy");
+            
+            const receipt = await tx.wait();
+            
+            // Extract Token Address
+            let tokenAddress = null;
+            if (receipt.logs.length > 0) {
+                // The Factory emits TokenCreated(address, ...). It is usually the first log, but let's try parsing.
+                const iface = new ethers.Interface(FACTORY_ABI);
+                for(let log of receipt.logs) {
+                    try {
+                        const parsed = iface.parseLog(log);
+                        if(parsed.name === "TokenCreated") {
+                            tokenAddress = parsed.args[0];
+                            break;
+                        }
+                    } catch(e) {}
+                }
+            }
+
+            if (receipt.status === 1) {
+                setStatus("Deployment Successful", "success");
+                showToast("Token Deployed Successfully!", "success");
+                saveToHistory(name, symbol, tx.hash, supply, maxSupply, options, tokenAddress);
+            } else { throw new Error("Transaction reverted"); }
+        } catch (err) {
+            console.error(err);
+            setStatus("Failed", "error");
+            showToast(err.reason || err.message.slice(0, 40), "error");
+        } finally {
+            const btn = document.getElementById('deployBtn');
+            btn.disabled = false; btn.innerText = "INITIATE DEPLOYMENT";
+        }
+    }
+
+    function saveToHistory(name, symbol, hash, supply, maxSupply, opts, address) {
+        const history = JSON.parse(localStorage.getItem('stable_deploy_history') || '[]');
+        const item = {
+            name, symbol, hash, address,
+            args: { supply, maxSupply, ...opts },
+            time: new Date().toLocaleTimeString()
+        };
+        history.unshift(item);
+        localStorage.setItem('stable_deploy_history', JSON.stringify(history.slice(0, 10)));
+        loadHistory();
+    }
+
+    function loadHistory() {
+        const history = JSON.parse(localStorage.getItem('stable_deploy_history') || '[]');
+        const list = document.getElementById('historyList');
+        if (history.length === 0) {
+            list.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.75rem; padding:15px;">No recent deployments</div>`;
+            return;
+        }
+        list.innerHTML = history.map((item, index) => {
+            // Correct Link Logic: If we found the address, go to contract page. Else TX page.
+            const verifyUrl = item.address 
+                ? `${EXPLORER_BASE}/address/${item.address}#code` // Direct to contract
+                : `${EXPLORER_BASE}/tx/${item.hash}`; // Fallback to TX
+            
+            // Add to Wallet logic
+            const addToWalletHtml = item.address ? `
+                <span class="action-btn-small" onclick="addToWallet('${item.address}', '${item.symbol}')">
+                    <i class="fa-solid fa-wallet"></i> ADD
+                </span>
+            ` : '';
+
+            return `
+            <div class="history-item">
+                <div class="history-main">
+                    <div>
+                        <div style="color:#fff; font-weight:bold;">${item.name} (${item.symbol})</div>
+                        <div class="history-meta">${item.time}</div>
+                    </div>
+                </div>
+                <div class="history-actions">
+                    <a href="${verifyUrl}" target="_blank" class="action-btn-small primary">
+                        <i class="fa-solid fa-check-double"></i> VIEW
+                    </a>
+                    ${addToWalletHtml}
+                </div>
+            </div>
+        `}).join('');
+    }
+
+    async function addToWallet(address, symbol) {
+        try {
+            await window.ethereum.request({
+                method: 'wallet_watchAsset',
+                params: {
+                    type: 'ERC20',
+                    options: {
+                        address: address,
+                        symbol: symbol,
+                        decimals: 18,
+                    },
+                },
+            });
+        } catch (error) {
+            showToast("Failed to add to wallet", "error");
+        }
+    }
+
+    function triggerVerify(index) {
+        const history = JSON.parse(localStorage.getItem('stable_deploy_history') || '[]');
+        const item = history[index];
+        if(!item) return;
+        openVerifyModal(
+            item.name, item.symbol, item.args.supply, item.args.maxSupply, 
+            item.args.isMintable, item.args.isBurnable, item.args.isPausable
+        );
+    }
+
+    function clearHistory() { localStorage.removeItem('stable_deploy_history'); loadHistory(); }
+    if(window.ethereum) { window.ethereum.on('chainChanged', () => window.location.reload()); }
+</script>
+</body>
+</html>
